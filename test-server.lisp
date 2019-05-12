@@ -1,6 +1,7 @@
 ;; Simple sipc server
 
-(ql:quickload :cl-sipc)
+(let ((*standard-output* (make-broadcast-stream)))
+  (ql:quickload :cl-sipc))
 
 (defparameter *socket-file* "sipc.socket")
 (defparameter *socket* (cl-sipc:bind *socket-file*))
