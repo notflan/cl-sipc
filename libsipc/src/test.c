@@ -11,6 +11,29 @@ int on_error(si_error err)
 	return 0;
 }
 
+void binchar(char *byte, unsigned char c)
+{
+	sprintf(byte, "%x", c);
+}
+
+#define STRBIN_MAX_SIZE 64
+char* strbin(const unsigned char* data, size_t sz)
+{
+	static char buffer[STRBIN_MAX_SIZE];
+	memset(buffer,0,STRBIN_MAX_SIZE);
+
+	register int j=0;
+	for(register int i=0;i<sz && j<STRBIN_MAX_SIZE-3;i+=1,j+=2)
+	{
+		binchar(buffer+j, data[i]);
+	}
+
+	if(j>=(STRBIN_MAX_SIZE-3))
+		sprintf(buffer+(STRBIN_MAX_SIZE-4), "...");
+
+	return buffer;
+}
+
 int on_message(const si_message *msg)
 {
 	char* text;
@@ -28,7 +51,7 @@ int on_message(const si_message *msg)
 			text = (char*) msg->data;
 			break;
 		case SI_BINARY:
-			text = "...";
+			text = strbin(msg->data, (size_t)msg->data_len);
 			break;
 		default:
 			text= "(unbound)";
@@ -80,12 +103,12 @@ int cli_return(int rrc)
 	return rc;
 }
 
-int client(const char* conto, const char* string)
+int client(const char* conto, const char* string, int bin)
 {
 	si_message *msg = malloc(sizeof(si_message)+strlen(string));
 	memset(msg,0,sizeof(si_message)+strlen(string));
 
-	msg->type = SI_STRING;
+	msg->type = bin ? SI_BINARY : SI_STRING;
 	msg->data_len = strlen(string);
 
 	memcpy(msg->data, string, msg->data_len);
@@ -135,24 +158,40 @@ int main(int argc, char** argv)
 		switch(argv[1][1]) {
 			case 'l':
 				//Listen
+				if(argv[1][2] == 'f')
+					unlink(argv[2]);
 				rc = server(argv[2]);
 				break;
 			case 'p':
 				//Write
 				if(argv[3])
 				{
-					rc = client(argv[2], argv[3]);
+					if(argv[1][2] == 'b')
+						rc = client(argv[2], argv[3], 1);
+					else
+						rc = client(argv[2], argv[3], 0);
 					printf("client rc %d\n", rc);
 				} else printf("no message\n");
 				break;
 			case 'c':
 				//Close
-				client_close(argv[2]);
+				rc = client_close(argv[2]);
+				if(rc==0) {
+					if(argv[1][2] == 'f')
+						unlink(argv[2]);
+				}
+				printf("client rc %d\n", rc);
 				break;
 			default:
 				printf("i don't know how to do that\n");
 				break;
 		}
-	} else printf("usage: %s -l <socket>\nusage: %s -p <socket> <message>\nusage: %s -c <socket>\n", argv[0], argv[0], argv[0]);
+	} else 
+	{
+		printf("usage: %s -l[f] <socket>\nusage: %s -p[b] <socket> <message>\nusage: %s -c[f] <socket>\n", argv[0], argv[0], argv[0]);
+		printf("\n-l[f]\tlisten on socket. (f to unlink file first)\n");
+		printf("-p[b]\twrite to socket. (b to send as binary)\n");
+		printf("-c[f]\tsend cose signal to socket. (f to unlink file after)\n");
+	}
 	return rc;
 }
