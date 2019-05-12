@@ -1,4 +1,4 @@
-libsipc/test
+libsipc/sipcli
 *.o
 *.so
 *.socket
