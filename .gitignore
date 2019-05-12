@@ -1,4 +1,4 @@
 libsipc/sipcli
 *.o
-*.so
+libsipc/*.so
 *.socket
