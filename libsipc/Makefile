@@ -1,7 +1,8 @@
 TRANS:=src/sipc.c
 INCLUDE:=include/
-CFLAGS:= -c -Wall -fPIC -I$(INCLUDE)
-STD:=--std=gnu11
+STD:=gnu11
+CFLAGS:= --std=$(STD) -Wall -pedantic -I$(INCLUDE)
+LCFLAGS:= -c $(CFLAGS) -fPIC
 
 all: clean libsipc sipcli
 
@@ -14,13 +15,13 @@ clean:
 	rm -f *.socket
 
 libsipc:
-	gcc $(STD) $(CFLAGS) $(TRANS)
+	gcc $(LCFLAGS) $(TRANS)
 	gcc -shared -o $@.so *.o
 
 libsipc-ffi:
-	gcc $(STD) $(CFLAGS) $(TRANS) src/ffi.c
+	gcc $(LCFLAGS) $(TRANS) src/ffi.c
 	gcc -shared -o $@.so *.o
 
 sipcli: libsipc
-	gcc $(STD) -Wall -pedantic -I$(INCLUDE) -Wl,-rpath=./ src/test.c -o $@ -L./ -lsipc
+	gcc $(CFLAGS) -Wl,-rpath=./ src/cli.c -o $@ -L./ -lsipc
 	./$@

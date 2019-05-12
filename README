@@ -3,10 +3,10 @@ cl-sipc (common lisp socket inter-process communication)
 Unix domain socket message passing for Common Lisp.
 
 Run `make' in this directory once to build the CFFI library.
-Run `sudo make install' to install system-wide.
-
+Run `sudo make install-ffi' to install the ffi library system-wide. (`sudo make uninstall-ffi' to remove)
+ 
 The symlinked libsipc.so will resolve after the ffi library is built and the package will work in this directory (the symlink is to libsipc/libsipc-ffi.so)
-Additionally you can run `sudo make install' to make it work system-wide (installed to /usr/lib/libsipc.so) (`sudo make uninstall' to remove it)
+Additionally you can run `sudo make install-ffi' to make it work system-wide (installed to /usr/lib/libsipc.so) (`sudo make uninstall' to remove it)
 Or you can copy/symlink libsipc/libsipc-ffi.so to wherever you need.
 
 Additional tools can be built by running `make all-ffi' in the libsipc/ directory.
@@ -31,6 +31,18 @@ Functions:
    body) ;; Bind socket from `socket-filename' to new lexical variable `socket-name' and run (progn @body), then relase the socket afterwards. If the socket fails to bind, return nil and do not attempt to execute body.
 
 See `cl-sipc.lisp' for more documentation.
+
+--- 
+
+Other installation options
+
+Run `sudo make install' to install ffi library system-wide and attempt to symlink to ~/quicklisp/local-projects/cl-sipc (if it exists). Or run `sudo make install-ffi' to just install the library. (note: you can run `make install' without sudo, in which case it will just attempt to symlink and not install the library. the same is true for `make uninstall'.)
+ -> sudo make install ;; install ffi systemwide and symlink
+ -> make install ;; only symlink
+ -> sudo make install-ffi ;; insall only ffi
+ -> sudo make uninstall ;; uninstall ffi systemwide and remove symlink
+ -> make uninstall ;; only remove symlink
+ -> sudo make uninstall-ffi ;; only uninstall ffi
 
 ---
 
