@@ -2,4 +2,5 @@
 
 (defpackage #:cl-sipc
   (:use #:cl
-	#:cffi))
+	#:cffi)
+  (:nicknames :sipc))

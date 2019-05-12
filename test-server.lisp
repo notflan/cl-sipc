@@ -1,4 +1,4 @@
-
+;; Simple sipc server
 
 (ql:quickload :cl-sipc)
 
