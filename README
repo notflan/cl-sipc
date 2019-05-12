@@ -6,8 +6,9 @@ Run `make' in this directory once to build the CFFI library.
 Run `sudo make install-ffi' to install the ffi library system-wide. (`sudo make uninstall-ffi' to remove)
  
 The symlinked libsipc.so will resolve after the ffi library is built and the package will work in this directory (the symlink is to libsipc/libsipc-ffi.so)
-Additionally you can run `sudo make install-ffi' to make it work system-wide (installed to /usr/lib/libsipc.so) (`sudo make uninstall' to remove it)
+Additionally you can run `sudo make install-ffi' to make it work system-wide (installed to /usr/lib/libsipc.so) (`sudo make uninstall-ffi' to remove it)
 Or you can copy/symlink libsipc/libsipc-ffi.so to wherever you need.
+(see additional installation options below).
 
 Additional tools can be built by running `make all-ffi' in the libsipc/ directory (or `make utils' in this one).
 
