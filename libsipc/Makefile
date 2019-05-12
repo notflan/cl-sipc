@@ -4,6 +4,8 @@ CFLAGS:= -c -Wall -pedantic -fPIC -I$(INCLUDE)
 
 all: clean libsipc sipcli
 
+all-ffi: all libsipc-ffi
+
 clean:
 	rm -f *.o
 	rm -f *.so
