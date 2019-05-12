@@ -14,6 +14,10 @@ libsipc:
 	gcc $(CFLAGS) $(TRANS)
 	gcc -shared -o $@.so *.o
 
+libsipc-ffi:
+	gcc $(CFLAGS) $(TRANS) src/ffi.c
+	gcc -shared -o $@.so *.o
+
 sipcli: libsipc
 	gcc -Wall -pedantic -I$(INCLUDE) -Wl,-rpath=./ src/test.c -o $@ -L./ -lsipc
 	./$@
