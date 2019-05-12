@@ -1,0 +1,4 @@
+libsipc/test
+*.o
+*.so
+*.socket
