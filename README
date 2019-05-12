@@ -1,0 +1,59 @@
+Unix domain socket message listener for Common Lisp.
+
+Run `make' in this directory once to build the CFFI library.
+Run `sudo make install' to install system-wide.
+
+The symlinked libsipc.so will resolve after the ffi library is built and the package will work in this directory (the symlink is to libsipc/libsipc-ffi.so)
+Additionally you can run `sudo make install' to make it work system-wide (installed to /usr/lib/libsipc.so) (`sudo make uninstall' to remove it)
+Or you can copy/symlink libsipc/libsipc-ffi.so to wherever you need.
+
+Additional tools can be built by running `make all libsipc-ffi' in the libsipc/ directory.
+
+Functions:
+ sipc:bind(file)	;; Bind to socket `file'. Returns the socket descriptor on success and nil on fail (the socket must not already exist)
+ sipc:release(socket)	;; Close socket
+ sipc:hook(socket error-callback message-callback)
+   ;; start listening on `socket'. error-callback should be in format (lambda (error) ...). message-callback should be in format (lambda (type message )...).
+   ;; available errors are:
+	; :accept - There was an error accepting the connection
+	; :read - There was an error reading the message
+	; :closed - The connection was closed before a message could be read
+	; :message - The message was invalid or outside the acceptable size bounds (TODO make this runtime instead of compile-time constant)
+	;; (see libsipc/include/sipc.h for more details)
+   ;; available types are:
+	; :string - Normal string
+	; :binary - CFFI pointer to memory (TODO currently unusable)
+	; :close - A request to close (the message is always NIL for this type)
+   ;; If an error or message callback returns NIL, the listener is stopped (you still have to call sipc:release()). Otherwise, the return is ignored.
+ (sipc:with-bound-socket (socket-name socket-filename)
+   body) ;; Bind socket from `socket-filename' to new lexical variable `socket-name' and run (progn @body), then relase the socket afterwards. If the socket fails to bind, return nil and do not attempt to execute body.
+
+See `cl-sipc.lisp' for more documentation.
+
+---
+
+Example using sipcli (run `make' in libsipc/ directory)
+
+Terminal 1:
+[user@host cl-sipc]$ ./test-server 
+-> [+] listening on sipc.socket...
+
+Terminal 2:
+[user@host libsipc]$ ./sipcli -p ../sipc.socket "Hello World"
+
+Terminal 1:
+ <- (STRING) Hello World
+
+Terminal 2:
+[user@host libsipc]$ ./sipcli -cf ../sipc.socket
+
+Terminal 1:
+ <- (CLOSE) NIL
+[-] listen rc 1
+[user@host cl-sipc]$
+
+---
+
+TODO: Have libsipc built on system load
+TODO: Change :binary message from pointer to vector.
+TODO: better .so loading

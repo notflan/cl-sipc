@@ -39,4 +39,17 @@
   (si-close sd)
   t)
 
-(mapc #'export '(bind hook release))
+(defmacro with-bound-socket (desc &body body)
+  "bind socket, run `body', then close the socket"
+  "example: (with-bound-socket (socket \"file.socket\") (hook socket ...))"
+  "returns the last value from body on success, returns NIL without running body if the socket failed to bind"
+  `(let* ((,(first desc) (bind ,(second desc)))
+	  (return-value 
+	    (if (null ,(first desc)) ;;bind failed
+	      nil
+	      (progn ,@body))))
+     (when (not (null ,(first desc)))
+       (release ,(first desc)))
+     return-value))
+
+(mapc #'export '(bind hook release with-bound-socket))

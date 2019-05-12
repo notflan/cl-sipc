@@ -5,6 +5,7 @@ ffi:
 
 clean:
 	cd libsipc && make clean
+	rm -f *.socket
 
 install: ffi
 	cp -f libsipc.so /usr/lib/libsipc.so
