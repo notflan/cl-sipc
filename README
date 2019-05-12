@@ -9,7 +9,7 @@ The symlinked libsipc.so will resolve after the ffi library is built and the pac
 Additionally you can run `sudo make install-ffi' to make it work system-wide (installed to /usr/lib/libsipc.so) (`sudo make uninstall' to remove it)
 Or you can copy/symlink libsipc/libsipc-ffi.so to wherever you need.
 
-Additional tools can be built by running `make all-ffi' in the libsipc/ directory.
+Additional tools can be built by running `make all-ffi' in the libsipc/ directory (or `make utils' in this one).
 
 Functions:
  sipc:bind(file)	;; Bind to socket `file'. Returns the socket descriptor on success and nil on fail (the socket must not already exist)

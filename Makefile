@@ -4,9 +4,14 @@ LOCAL_PROJECTS:=$(HOME)/quicklisp/local-projects
 ffi:
 	cd libsipc && make libsipc-ffi
 
+utils:
+	cd libsipc && make all-ffi
+	ln -sf libsipc/sipcli sipcli
+
 clean:
 	cd libsipc && make clean
 	rm -f *.socket
+	rm -f sipcli
 
 install-ffi:
 	if [[ $(shell id -u) == 0 ]]; then cp -f libsipc.so /usr/lib/libsipc.so; fi
