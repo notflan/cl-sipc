@@ -1,4 +1,6 @@
-Unix domain socket message listener for Common Lisp.
+cl-sipc (common lisp socket inter-process communication)
+
+Unix domain socket message passing for Common Lisp.
 
 Run `make' in this directory once to build the CFFI library.
 Run `sudo make install' to install system-wide.
@@ -54,6 +56,7 @@ Terminal 1:
 
 ---
 
+TODO: Implement message sending wrapper.
 TODO: Have libsipc built on system load
-TODO: Change :binary message from pointer to vector.
+TODO: Change :binary message from pointer to vector (or at least pass size to handler so it's usable).
 TODO: better .so loading
