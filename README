@@ -34,7 +34,8 @@ See `cl-sipc.lisp' for more documentation.
 
 ---
 
-Example using sipcli (run `make' in libsipc/ directory)
+Example using sipcli (run `make all-ffi' in libsipc/ directory)
+(see `test-server.lisp' for example server)
 
 Terminal 1:
 [user@host cl-sipc]$ ./test-server 
@@ -57,6 +58,7 @@ Terminal 1:
 ---
 
 TODO: Implement message sending wrapper.
+TODO: Internal error handling.
 TODO: Have libsipc built on system load
 TODO: Change :binary message from pointer to vector (or at least pass size to handler so it's usable).
 TODO: better .so loading
