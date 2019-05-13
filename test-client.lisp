@@ -21,7 +21,7 @@
 	      (read))))
     (and (atom rd)
 	 (eql rd 'quit)
-	 (quit))
+	 (exit))
     (print (and (not (atom rd))
 	 (cond ((eql (car rd) 'send) (sipc:send-quick *socket-file* (if (stringp (cadr rd))
 								      (cadr rd)
