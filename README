@@ -69,6 +69,30 @@ Run `sudo make install' to install ffi library system-wide and attempt to symlin
 
 ---
 
+Example using test-client.lisp && test-server.lisp:
+
+Terminal 1:
+$ ./test-server
+
+Terminal 2:
+$ ./test-client
+> (send "Hello world")
+
+Terminal 1:
+ <- (STRING) Hello world
+
+Terminal 2:
+> (close)
+
+Terminal 1:
+ <- (CLOSE) NIL
+[-] listen rc 1
+$ 
+
+Terminal 1:
+> quit
+$ 
+
 Example using sipcli (run `make all-ffi' in libsipc/ directory)
 (see `test-server.lisp' for example server)
 
