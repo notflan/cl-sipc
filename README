@@ -46,6 +46,13 @@ See `cl-sipc.lisp' for more documentation.
 Pointers:
  (sipc:make-pointer :memory cffi-pointer :size size) ;; Make from CFFI foreign-pointer with size
  (sipc:pointer-free ptr) ;; Free pointer
+
+ (sipc:pointer-from-seq sequence &optional cffi-type) ;; make pointer from list or vector
+ (sipc:pointer-from value &optional cffi-type) ;; make pointer from single value
+ (sipc:pointer-from-string string) ;; make pointer from lisp string
+ (sipc:pointer-to-array ptr &optional cffi-type) ;; make vector from elements in ptr
+ ; (note: all cffi-type arguments default to :unsigned-char)
+
  (sipc:with-pointer (name &optional type cffi-type) value body...) ;; allocate pointer from value with type and lexical name. free after body.
 	;; type:
 	;;  :string -- expects Lisp string
