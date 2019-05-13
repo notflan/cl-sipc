@@ -13,6 +13,7 @@ Or you can copy/symlink libsipc/libsipc-ffi.so to wherever you need.
 Additional tools can be built by running `make all-ffi' in the libsipc/ directory (or `make utils' in this one).
 
 Functions:
+;server functions
  sipc:bind(file)	;; Bind to socket `file'. Returns the socket descriptor on success and nil on fail (the socket must not already exist)
  sipc:release(socket)	;; Close socket
  sipc:hook(socket error-callback message-callback)
@@ -25,13 +26,34 @@ Functions:
 	;; (see libsipc/include/sipc.h for more details)
    ;; available types are:
 	; :string - Normal string
-	; :binary - CFFI pointer to memory (TODO currently unusable)
+	; :binary - pointer to memory (see struct pointer in `pointer.lisp')
 	; :close - A request to close (the message is always NIL for this type)
    ;; If an error or message callback returns NIL, the listener is stopped (you still have to call sipc:release()). Otherwise, the return is ignored.
  (sipc:with-bound-socket (socket-name socket-filename)
-   body) ;; Bind socket from `socket-filename' to new lexical variable `socket-name' and run (progn @body), then relase the socket afterwards. If the socket fails to bind, return nil and do not attempt to execute body.
+   body)
+	;; Bind socket from `socket-filename' to new lexical variable `socket-name' and run (progn @body), then relase the socket afterwards. If the socket fails to bind, return nil and do not attempt to execute body.
+	;; Add `:connect' after socket-filename to connect instead of binding.
+;client functions
+ sipc:connect(file) ;; connect to socket `file', returns sd on success, nil on failure.
+ sipc:send(sd value &ptional type) ;; send `value' to socket `sd' (optionally specify type (see above types), default :string)
+	;; :string -- value expected to be a string
+	;; :binary --value expected to be `pointer' struct
+	;; :close -- value ignored
+ sipc:send-quick(file value &optional type) ;; send `value' to socket file `file'
 
 See `cl-sipc.lisp' for more documentation.
+
+Pointers:
+ (sipc:make-pointer :memory cffi-pointer :size size) ;; Make from CFFI foreign-pointer with size
+ (sipc:pointer-free ptr) ;; Free pointer
+ (sipc:with-pointer (name &optional type cffi-type) value body...) ;; allocate pointer from value with type and lexical name. free after body.
+	;; type:
+	;;  :string -- expects Lisp string
+	;;  :sequence -- expects list or vector
+	;;  :single -- expects single value
+	;;  :infer (defualt) -- infer from value
+	;; optionally specify cffi type (default :unsigned-char)
+(see pointer.lisp for more info)
 
 --- 
 
@@ -70,8 +92,6 @@ Terminal 1:
 
 ---
 
-TODO: Implement message sending wrapper.
 TODO: Internal error handling.
 TODO: Have libsipc built on system load
-TODO: Change :binary message from pointer to vector (or at least pass size to handler so it's usable).
 TODO: better .so loading

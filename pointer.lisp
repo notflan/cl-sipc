@@ -24,6 +24,11 @@
 (defmacro with-pointer (desc from &body body)
   "with pointer allocated
    desc can have name, type allocated, C type.
+   available types:
+   	:string -- List string 
+	:sequence -- array from list or vector
+	:single -- single element
+	:infer (defualt) -- infer type from value
    example: 
    	(with-pointer (string-ptr) lisp-string
 		      body...)
@@ -58,6 +63,13 @@
   "Free pointer"
   (foreign-free (pointer-memory ptr)))
 
+(defun pointer-to-array (ptr &optional (type :unsigned-char))
+  "pointer to Lisp vector"
+  (let ((vec (make-array (pointer-size ptr) :initial-element 0)))
+    (loop for x from 0 below (pointer-size ptr)
+	  do (setf (aref vec x) (mem-aref (pointer-memory ptr) type x)))
+    vec))
+
 (mapc #'export '( make-pointer
 		  pointer
 		  pointer-memory
@@ -68,4 +80,5 @@
 		  pointer-from-seq
 		  pointer-from
 		  with-pointer
+		  pointer-to-array
 		  pointer-free))

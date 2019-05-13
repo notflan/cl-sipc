@@ -57,7 +57,7 @@
 	(data (sif-data message))
 	(rval (cond ((= type #.+si-string+) (funcall (symbol-value '*on-message*) :string (foreign-string-to-lisp data)))
 		    ((= type #.+si-close+) (funcall (symbol-value '*on-message*) :close nil))
-		    ((= type #.+si-binary+) (funcall (symbol-value '*on-message*) :binary data)))))
+		    ((= type #.+si-binary+) (funcall (symbol-value '*on-message*) :binary (make-pointer :memory data :size size))))))
     (if rval
       0
       1)))
