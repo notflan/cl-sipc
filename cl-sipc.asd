@@ -9,4 +9,5 @@
   :depends-on (  :cffi  )
   :components  ((:file "package")
 		(:file "ffi")
+		(:file "pointer")
 		(:file "cl-sipc")))

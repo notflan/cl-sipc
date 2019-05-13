@@ -72,22 +72,25 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 		int read=0;
 		int rd=0;
 		rc=0;
+		int rc2=0;
 		while( (read += (rd = recv(csd, buffer, sizeof(si_message), 0))) < sizeof(si_message))
 		{
 			if(rd<0)
 			{
 				rc = on_error(SIE_READ);
+				rc2=1;
 				break;
 			} else if(rd==0)
 			{
 				rc = on_error(SIE_PCONCLS);
+				rc2=1;
 				break;
 			}
 		}
 		if(rc<0) {
 			close(csd);
 			break;
-		} else {
+		} else if (!rc2) {
 			//message header has been read.
 			si_message *full;
 			if(_si_valid_header(message))
@@ -96,23 +99,24 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 				memset(full,0,sizeof(si_message)+message->data_len+1); //always have null-term
 				memcpy(full, message, sizeof(si_message));
 				rc = _si_read_rest(csd, full);
+				if(rc!=0) {
+					if(rc==-1)
+						rc = on_error(SIE_READ);
+					else
+						rc = on_error(SIE_PCONCLS);
+					if(rc<0) {
+						close(csd);
+						break;
+					}
+				}
+			  	else {
+					//Message has been read.
+					rc = on_message(full);
+					free(full);	
+				}
 			}
 			else {
 				rc = on_error(SIE_INVALID);
-			}
-			if(rc!=0) {
-				if(rc==-1)
-					rc = on_error(SIE_READ);
-				else
-					rc = on_error(SIE_PCONCLS);
-				if(rc<0) {
-					close(csd);
-					break;
-				}
-			} else {
-				//Message has been read.
-				rc = on_message(full);
-				free(full);	
 			}
 		}
 		close(csd);

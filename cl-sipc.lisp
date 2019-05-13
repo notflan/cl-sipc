@@ -41,12 +41,23 @@
   (si-close sd)
   t)
 
+(defun connect (file)
+  "connect to socket `file'"
+  (let ((rc (si-connect file)))
+    (if (< rc 0) ;error
+      nil
+      rc)))
+
 (defmacro with-bound-socket (desc &body body)
-  "bind socket, run `body', then close the socket
+  "bind socket, run `body', then close the socket.
+   if :connect is in desc, connect instead of binding.
    example: (with-bound-socket (socket \"file.socket\") (hook socket ...))
+   example: (with-bound-socket (socket \"file.socket\" :connect) (send socket ...))
    returns the last value from body on success, returns NIL without running body if the socket failed to bind
   "
-  `(let* ((,(first desc) (bind ,(second desc)))
+  `(let* ((,(first desc) (if (member :connect ',(cddr desc))
+			   (connect ,(second desc))
+			   (bind ,(second desc))))
 	  (return-value 
 	    (if (null ,(first desc)) ;;bind failed
 	      nil
@@ -55,4 +66,42 @@
        (release ,(first desc)))
      return-value))
 
-(mapc #'export '(bind hook release with-bound-socket))
+(defun %siqs-binary (sd value)
+  (cond ((pointer-p value) (siqs-binary sd (pointer-memory value) (pointer-size value)))
+	(t (with-pointer (ptr) value (%siqs-binary sd ptr)))))
+
+(defun send (sd value &optional (type :string))
+  "send to sever on socket sd.
+   example: (with-bound-socket (socket \"file.socket\") (hook socket ...))
+   returns (values t nil) on success. (values nil <error>) on failure.
+   error can be:
+   	:partial - Could not write whole message
+	:error - send() error
+	:failure - send failed
+	:unknown - unknown error code
+	:unknown-type - key argument :type is unknown
+  :type can be:
+  	:string (default) - assumes `value' is string, send that as string type
+	:binary - assumes `value' is either string or vector of bytes, send that as binary type
+	:close - ignore value, send close signal
+  "
+  (let ((rc (cond ((eql type :string) (siqs-string sd value))
+		  ((eql type :binary) (%siqs-binary sd value))
+		  ((eql type :close) (siqs-close sd))
+		  (t :unknown-type))))
+    (if (numberp rc)
+      (if (= rc #.+si-send-okay+)
+	(values t nil)
+	(values nil
+		(cond ((= rc #.+si-send-partial+) :partial)
+		      ((= rc #.+si-send-error+) :error)
+		      ((= rc #.+si-send-failure+) :failure)
+		      (t :unknown))))
+      rc)))
+
+(defun send-quick (sock value &optional (type :string))
+  "Quickly send value to socket file `sock'"
+  (with-bound-socket (sd sock :connect)
+    (send sd value type)))
+
+(mapc #'export '(connect send send-quick bind hook release with-bound-socket))

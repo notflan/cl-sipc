@@ -74,3 +74,20 @@
 
 (defcfun "si_close" :void
   (server :int))
+
+(defcfun "si_connect" :int
+  (file :string))
+
+;; send functions
+
+(defcfun "siqs_string" :int
+  (sd :int)
+  (string :string))
+
+(defcfun "siqs_close" :int
+  (sd :int))
+
+(defcfun "siqs_binary" :int
+  (sd :int)
+  (buffer :pointer)
+  (size :int))

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [[ ! -f "`readlink -f libsipc.so`" ]]; then
+	echo "[w] have to build first..."
+	make ffi
+fi
+
+sbcl --noinform --load test-client.lisp
