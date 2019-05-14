@@ -6,7 +6,7 @@
 
 int on_error(si_error err)
 {
-	printf("[E] <- %s\n", si_error_string(err));
+	printf("[e] <- %s\n", si_error_string(err));
 
 	return 0;
 }
@@ -70,7 +70,7 @@ int on_message(const si_message *msg)
 		if(rc==SI_SEND_OKAY)
 			;//printf("[l] response send ok\n");
 		else
-			printf("[e] %s\n", si_error_string((si_error)rc));
+			fprintf(stderr, "[e] %s\n", si_error_string((si_error)rc));
 	}
 
 	switch(msg->type)
@@ -102,10 +102,10 @@ int server(const char* bindto, int secho)
 	server_aresp = secho;
 
 	if(sd<0) {
-		printf("error binding\n");
+		fprintf(stderr, "[e] error binding\n");
 	} else {
 		rc = si_listen(sd, &on_error, &on_message);
-		printf("listen stopped with rc %d\n", rc);
+		//printf("listen stopped with rc %d\n", rc);
 		if(rc>=0) //positive rc is okay
 			rc=0;
 	}
@@ -118,20 +118,20 @@ int cli_return(int rrc)
 	int rc=-1;
 	switch(rrc) {
 		case SI_SEND_OKAY:
-			printf("send okay\n");
+			//printf("send okay\n");
 			rc=0;
 			break;
 		case SI_SEND_ERROR:
-			printf("send error\n");
+			fprintf(stderr, "[e] send error\n");
 			break;
 		case SI_SEND_FAILURE:
-			printf("send failure\n");
+			fprintf(stderr, "[e] send failure\n");
 			break;
 		case SI_SEND_PARTIAL:
-			printf("partial send failure\n");
+			fprintf(stderr, "[e] partial send failure\n");
 			break;
 		default:
-			printf("unknown send error");
+			fprintf(stderr, "[e] unknown send error");
 			break;
 	}
 	return rc;
@@ -151,7 +151,7 @@ int client(const char* conto, const char* string, int bin)
 
 	int sd = si_connect(conto);
 	if(sd<0) {
-		printf("connect error\n");
+		fprintf(stderr, "[e] connect error\n");
 	} else {
 		si_message *response = NULL;
 		int rrc = si_sendmsg_r(sd, msg, &response);
@@ -178,7 +178,7 @@ int client_close(const char* conto)
 	int rc=-1;
 	int sd = si_connect(conto);
 	if(sd<0) {
-		printf("connect error\n");
+		fprintf(stderr, "[e] connect error\n");
 	} else {
 		si_message* response = NULL;
 		int rrc = si_sendmsg_r(sd, msg, &response);
@@ -209,6 +209,8 @@ int main(int argc, char** argv)
 				  (argv[1][2] && argv[1][3] == 'e'));
 
 				rc = server(argv[2], secho);
+				if(rc!=1)
+					fprintf(stderr, "[e] listener stopped with rc %d\n", rc);
 				break;
 			case 'p':
 				//Write
@@ -218,8 +220,9 @@ int main(int argc, char** argv)
 						rc = client(argv[2], argv[3], 1);
 					else
 						rc = client(argv[2], argv[3], 0);
-					printf("client rc %d\n", rc);
-				} else printf("no message\n");
+					if(rc!=0)
+						fprintf(stderr, "[e] client rc %d\n", rc);
+				} else fprintf(stderr, "[e] no message\n");
 				break;
 			case 'c':
 				//Close
@@ -228,10 +231,11 @@ int main(int argc, char** argv)
 					if(argv[1][2] == 'f')
 						unlink(argv[2]);
 				}
-				printf("client rc %d\n", rc);
+				if(rc!=0)
+					fprintf(stderr, "[e] client rc %d\n", rc);
 				break;
 			default:
-				printf("i don't know how to do that\n");
+				fprintf(stderr, "[e] i don't know how to do that\n");
 				break;
 		}
 	} else 
