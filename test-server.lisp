@@ -4,7 +4,7 @@
   (ql:quickload :cl-sipc))
 
 (defparameter *socket-file* "sipc.socket")
-(defparameter *respond* t)
+(defparameter *respond* t) ;; should the server echo responses to client?
 
 (when (probe-file *socket-file*)
   (delete-file *socket-file*))
@@ -25,7 +25,7 @@
 			    (when *respond*
 			      (format t
 				      " -> ~a~%"
-				      (sipc:respond 
+				      (sipc:respond ;; send the response as a formatted string
 					(if (eql type :binary)
 					  (format nil "~a" (sipc:pointer-to-array message))
 					  (format nil "~a" message)))))
