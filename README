@@ -29,13 +29,18 @@ Functions:
 	; :binary - pointer to memory (see struct pointer in `pointer.lisp')
 	; :close - A request to close (the message is always NIL for this type)
    ;; If an error or message callback returns NIL, the listener is stopped (you still have to call sipc:release()). Otherwise, the return is ignored.
+ sipc:respond(message value &optional type) ;; send response (note: only valid when handling message) works the same as send() (see below) with additional error responses:
+	;; t - success
+	;; :response-disabled - SI_NORESP flag was set
+	;; :response-invalid - this message cannnot be responded to like this
+	;; :response-multi - a response has already been sent
  (sipc:with-bound-socket (socket-name socket-filename)
    body)
 	;; Bind socket from `socket-filename' to new lexical variable `socket-name' and run (progn @body), then relase the socket afterwards. If the socket fails to bind, return nil and do not attempt to execute body.
 	;; Add `:connect' after socket-filename to connect instead of binding.
 ;client functions
  sipc:connect(file) ;; connect to socket `file', returns sd on success, nil on failure.
- sipc:send(sd value &ptional type) ;; send `value' to socket `sd' (optionally specify type (see above types), default :string)
+ sipc:send(sd value &ptional type (keep-response t)) ;; send `value' to socket `sd' (optionally specify type (see above types), default :string). returns the response if one was sent, or t if keep-response if nil or the server did not send one.
 	;; :string -- value expected to be a string
 	;; :binary --value expected to be `pointer' struct
 	;; :close -- value ignored

@@ -75,9 +75,9 @@
 	(t (with-pointer (ptr) value (%siqr-binary sd ptr)))))
 
 (defun send (sd value &optional (type :string) (keep-resp t))
-  "send to sever on socket sd.
+  "send to sever on socket sd. 
    example: (with-bound-socket (socket \"file.socket\") (hook socket ...))
-   returns (values response(t if none) nil) on success. (values nil <error>) on failure.
+   returns (values response(t if none or keep-resp is nil) nil) on success. (values nil <error>) on failure.
    error can be:
    	:partial - Could not write whole message
 	:error - send() error
@@ -121,6 +121,12 @@
       rc)))
 
 (defun respond (value &optional (type :string))
+  "send a response. (works same as send() but for server instead of client)
+   additional return values can be:
+   	:response-invalid - this message cannot be responded to
+	:response-disabled - the client does not want a response
+	:response-multi - a response has already been sent
+  "
   (let ((sd (symbol-value '*response-message*)))
     (if sd
       (let ((rc (cond 
