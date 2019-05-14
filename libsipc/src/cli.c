@@ -4,9 +4,15 @@
 #include <unistd.h>
 #include <string.h>
 
+int silent_level=0;
+
+#define Vprintf(...) if(silent_level<0) printf("[l] " __VA_ARGS__)
+#define Eprintf(...) if(silent_level <2) fprintf(stderr, "[e] " __VA_ARGS__)
+#define Pprintf(...) if(silent_level<1) printf(__VA_ARGS__)
+
 int on_error(si_error err)
 {
-	printf("[e] <- %s\n", si_error_string(err));
+	Eprintf("<- %s\n", si_error_string(err));
 
 	return 0;
 }
@@ -41,8 +47,11 @@ char* textmessage(const si_message *msg)
 	char* text;
 	switch(msg->type)
 	{
-		case SI_CLOSE: 
-			text = "...";
+		case SI_CLOSE:
+		        if(silent_level<2)	
+				text = "...";
+			else
+				text="";
 			break;
 		case SI_STRING:
 			text = (char*) msg->data;
@@ -67,17 +76,22 @@ int on_message(const si_message *msg)
 	if(server_aresp)
 	{
 		int rc = siqr_printf(msg, "-> %s", textmessage(msg));
-		if(rc==SI_SEND_OKAY)
-			;//printf("[l] response send ok\n");
-		else
-			fprintf(stderr, "[e] %s\n", si_error_string((si_error)rc));
+		if(rc==SI_SEND_OKAY) {
+			Vprintf("response send ok\n");
+		}
+		else {
+			Eprintf("%s\n", si_error_string((si_error)rc));
+		}
 	}
 
 	switch(msg->type)
 	{
 		case SI_CLOSE: 
 			rc=1;
-			text = "...";
+			if(silent_level<2)
+				text="...";
+			else
+				text = "";
 			break;
 		case SI_STRING:
 			text = (char*) msg->data;
@@ -90,7 +104,10 @@ int on_message(const si_message *msg)
 			break;
 	}
 
-	printf("<- (%s) %s\n", strty, text);
+	if(silent_level>1)
+		printf("%s\n", text);
+	else
+		printf("<- (%s) %s\n", strty, text);
 
 	return rc;
 }
@@ -102,10 +119,11 @@ int server(const char* bindto, int secho)
 	server_aresp = secho;
 
 	if(sd<0) {
-		fprintf(stderr, "[e] error binding\n");
+		Eprintf("error binding\n");
 	} else {
+		Vprintf("bind ok\n");
 		rc = si_listen(sd, &on_error, &on_message);
-		//printf("listen stopped with rc %d\n", rc);
+		Vprintf("listen stopped with rc %d\n", rc);
 		if(rc>=0) //positive rc is okay
 			rc=0;
 	}
@@ -118,20 +136,20 @@ int cli_return(int rrc)
 	int rc=-1;
 	switch(rrc) {
 		case SI_SEND_OKAY:
-			//printf("send okay\n");
+			Vprintf("send okay\n");
 			rc=0;
 			break;
 		case SI_SEND_ERROR:
-			fprintf(stderr, "[e] send error\n");
+			Eprintf("send error\n");
 			break;
 		case SI_SEND_FAILURE:
-			fprintf(stderr, "[e] send failure\n");
+			Eprintf("send failure\n");
 			break;
 		case SI_SEND_PARTIAL:
-			fprintf(stderr, "[e] partial send failure\n");
+			Eprintf("partial send failure\n");
 			break;
 		default:
-			fprintf(stderr, "[e] unknown send error");
+			Eprintf("unknown send error");
 			break;
 	}
 	return rc;
@@ -151,15 +169,20 @@ int client(const char* conto, const char* string, int bin)
 
 	int sd = si_connect(conto);
 	if(sd<0) {
-		fprintf(stderr, "[e] connect error\n");
+		Eprintf("connect error\n");
 	} else {
+		Vprintf("connect ok\n");
 		si_message *response = NULL;
 		int rrc = si_sendmsg_r(sd, msg, &response);
 		if(response) {
-			printf(" <- (%s) %s\n", si_type_string(response->type), textmessage(response)); 
+			if(silent_level>1)
+				printf("%s\n", textmessage(response));
+			else
+				printf(" <- (%s) %s\n", si_type_string(response->type), textmessage(response)); 
 			free(response);
 		}
 		rc = cli_return(rrc);
+		Vprintf("client rc %d\n", rc);
 		si_close(sd);
 	}
 
@@ -178,15 +201,20 @@ int client_close(const char* conto)
 	int rc=-1;
 	int sd = si_connect(conto);
 	if(sd<0) {
-		fprintf(stderr, "[e] connect error\n");
+		Eprintf("connect error\n");
 	} else {
+		Vprintf("connect ok\n");
 		si_message* response = NULL;
 		int rrc = si_sendmsg_r(sd, msg, &response);
 		if(response) {
-			printf(" <- (%s) %s\n", si_type_string(response->type), textmessage(response)); 
+			if(silent_level>1)
+				printf("%s\n", textmessage(response));
+			else
+				printf(" <- (%s) %s\n", si_type_string(response->type), textmessage(response)); 
 			free(response);
 		}
 		rc = cli_return(rrc);
+		Vprintf("client rc %d\n", rc);
 		si_close(sd);
 	}
 
@@ -194,9 +222,40 @@ int client_close(const char* conto)
 	return rc;
 }
 
+int pfa(char** argv)
+{
+	char * carg = argv[1]+1;
+	int rc=0;
+	while (*carg) 
+	{
+		switch(*carg) {
+			case 'q':
+				silent_level =1;
+				break;
+			case 'Q':
+				silent_level =2;
+				break;
+			case 'v':
+				silent_level =-1;
+				break;
+			default:
+				carg++;
+				continue;
+		}
+		rc = 1;
+		carg++;
+	}
+	return rc;
+}
+
 int main(int argc, char** argv)
 {
 	int rc=0,secho=0;
+	char** _av = argv;
+	if(argv[1] && argv[1][0] == '-')
+	{
+		argv+=pfa(argv);
+	}
 	if(argv[1] && argv[2] && argv[1][0]=='-') {
 
 		switch(argv[1][1]) {
@@ -209,8 +268,8 @@ int main(int argc, char** argv)
 				  (argv[1][2] && argv[1][3] == 'e'));
 
 				rc = server(argv[2], secho);
-				if(rc!=1)
-					fprintf(stderr, "[e] listener stopped with rc %d\n", rc);
+				if(rc!=0)
+					Eprintf("listener stopped with rc %d\n", rc);
 				break;
 			case 'p':
 				//Write
@@ -221,8 +280,8 @@ int main(int argc, char** argv)
 					else
 						rc = client(argv[2], argv[3], 0);
 					if(rc!=0)
-						fprintf(stderr, "[e] client rc %d\n", rc);
-				} else fprintf(stderr, "[e] no message\n");
+						Eprintf("client rc %d\n", rc);
+				} else Eprintf("no message\n");
 				break;
 			case 'c':
 				//Close
@@ -232,18 +291,23 @@ int main(int argc, char** argv)
 						unlink(argv[2]);
 				}
 				if(rc!=0)
-					fprintf(stderr, "[e] client rc %d\n", rc);
+					Eprintf("client rc %d\n", rc);
 				break;
 			default:
-				fprintf(stderr, "[e] i don't know how to do that\n");
+				Eprintf("i don't know how to do that\n");
 				break;
 		}
 	} else 
 	{
-		printf("usage: %s -l[fe] <socket>\nusage: %s -p[b] <socket> <message>\nusage: %s -c[f] <socket>\n", argv[0], argv[0], argv[0]);
+		argv = _av;
+		printf("usage: %s [-qQv] -l[fe] <socket>\nusage: %s [-qQv] -p[b] <socket> <message>\nusage: %s [-qQv] -c[f] <socket>\n", argv[0], argv[0], argv[0]);
 		printf("\n-l[fe]\tlisten on socket. (f to unlink file first, e to send response)\n");
 		printf("-p[b]\twrite to socket. (b to send as binary)\n");
 		printf("-c[f]\tsend cose signal to socket. (f to unlink file after)\n");
+		printf("\nother options:\n");
+		printf(" -q\tquiet mode, don't print errors\n");
+		printf(" -Q\tsilent mode, only print responses\n");
+		printf(" -v\tverbose mode, print additional messages\n");
 	}
 	return rc;
 }
