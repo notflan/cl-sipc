@@ -66,14 +66,18 @@
        (release ,(first desc)))
      return-value))
 
-(defun %siqs-binary (sd value)
-  (cond ((pointer-p value) (siqs-binary sd (pointer-memory value) (pointer-size value)))
-	(t (with-pointer (ptr) value (%siqs-binary sd ptr)))))
+(defun %siqs-binary-r (sd value flags resp)
+  (cond ((pointer-p value) (siqs-binary-r sd (pointer-memory value) (pointer-size value) flags resp ))
+	(t (with-pointer (ptr) value (%siqs-binary-r sd ptr flags resp  ))))) 
 
-(defun send (sd value &optional (type :string))
+(defun %siqr-binary (sd value)
+  (cond ((pointer-p value) (siqr-binary sd (pointer-memory value) (pointer-size value)))
+	(t (with-pointer (ptr) value (%siqr-binary sd ptr)))))
+
+(defun send (sd value &optional (type :string) (keep-resp t))
   "send to sever on socket sd.
    example: (with-bound-socket (socket \"file.socket\") (hook socket ...))
-   returns (values t nil) on success. (values nil <error>) on failure.
+   returns (values response(t if none) nil) on success. (values nil <error>) on failure.
    error can be:
    	:partial - Could not write whole message
 	:error - send() error
@@ -85,23 +89,60 @@
 	:binary - assumes `value' is either string or vector of bytes, send that as binary type
 	:close - ignore value, send close signal
   "
-  (let ((rc (cond ((eql type :string) (siqs-string sd value))
-		  ((eql type :binary) (%siqs-binary sd value))
-		  ((eql type :close) (siqs-close sd))
+  (let* ((response (sif-heap-alloc (if keep-resp 1 0)))
+	 (rc (cond ((eql type :string) (siqs-string-r sd value 0 response))
+		  ((eql type :binary) (%siqs-binary-r sd value 0 response))
+		  ((eql type :close) (siqs-close-r sd 0 response))
 		  (t :unknown-type))))
     (if (numberp rc)
       (if (= rc #.+si-send-okay+)
-	(values t nil)
-	(values nil
+	(values
+	  (if (null-pointer-p response)
+	    t
+	    (let ((resp (mem-ref response :pointer)))
+	      (prog1
+		(if (null-pointer-p resp)
+		  t
+		  (let ((resp-val nil))
+		    (si-typecase resp
+			         :string #'(lambda (value) (setf resp-val value)
+			         :binary #'(lambda (value) (setf resp-val value)
+			         :close  #'(lambda (value) (setf resp-val value)))))
+		    resp-val))
+		(sif-heap-free response))))
+	  nil)
+	(values (progn
+		  (sif-heap-free response)
+		  nil)
 		(cond ((= rc #.+si-send-partial+) :partial)
 		      ((= rc #.+si-send-error+) :error)
 		      ((= rc #.+si-send-failure+) :failure)
 		      (t :unknown))))
       rc)))
 
+(defun respond (value &optional (type :string))
+  (let ((sd (symbol-value '*response-message*)))
+    (if sd
+      (let ((rc (cond 
+		  ((eql type :string) (siqr-string sd value))
+		  ((eql type :binary) (%siqr-binary sd value))
+		  ((eql type :close) (siqr-close sd))
+		  (t :unknown-type))))
+	(if (numberp rc)
+	  (cond ((= rc #.+si-send-okay+) t)
+		((= rc #.+sie-r-disable+) :response-disabled)
+		((= rc #.+sie-r-multi+) :response-multi)
+		((= rc #.+sie-r-invalid+) :response-invalid)
+		((= rc #.+si-send-partial+) :partial)
+		((= rc #.+si-send-error+) :error)
+		((= rc #.+si-send-failure+) :failure)
+		(t :unknown))
+	  rc))
+      :response-invalid)))
+
 (defun send-quick (sock value &optional (type :string))
   "Quickly send value to socket file `sock'"
   (with-bound-socket (sd sock :connect)
     (send sd value type)))
 
-(mapc #'export '(connect send send-quick bind hook release with-bound-socket))
+(mapc #'export '(connect respond send send-quick bind hook release with-bound-socket))

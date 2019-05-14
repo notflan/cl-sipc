@@ -1,7 +1,7 @@
 TRANS:=src/sipc.c
 INCLUDE:=include/
 STD:=gnu11
-CFLAGS:= --std=$(STD) -Wall -pedantic -I$(INCLUDE)
+CFLAGS:= -g --std=$(STD) -Wall -pedantic -I$(INCLUDE)
 LCFLAGS:= -c $(CFLAGS) -fPIC
 
 all: clean libsipc sipcli

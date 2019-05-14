@@ -34,12 +34,44 @@ char* strbin(const unsigned char* data, size_t sz)
 	return buffer;
 }
 
+int server_aresp =0;
+
+char* textmessage(const si_message *msg)
+{
+	char* text;
+	switch(msg->type)
+	{
+		case SI_CLOSE: 
+			text = "...";
+			break;
+		case SI_STRING:
+			text = (char*) msg->data;
+			break;
+		case SI_BINARY:
+			text = strbin(msg->data, (size_t)msg->data_len);
+			break;
+		default:
+			text= "(unbound)";
+			break;
+	}
+	return text;
+}
+
 int on_message(const si_message *msg)
 {
 	char* text;
 	const char* strty = si_type_string(msg->type);
 	
 	int rc=0;
+
+	if(server_aresp)
+	{
+		int rc = siqr_printf(msg, "-> %s", textmessage(msg));
+		if(rc==SI_SEND_OKAY)
+			;//printf("[l] response send ok\n");
+		else
+			printf("[e] %s\n", si_error_string((si_error)rc));
+	}
 
 	switch(msg->type)
 	{
@@ -63,10 +95,12 @@ int on_message(const si_message *msg)
 	return rc;
 }
 
-int server(const char* bindto)
+int server(const char* bindto, int secho)
 {
 	int sd = si_bind(bindto);
 	int rc=-1;
+	server_aresp = secho;
+
 	if(sd<0) {
 		printf("error binding\n");
 	} else {
@@ -119,7 +153,12 @@ int client(const char* conto, const char* string, int bin)
 	if(sd<0) {
 		printf("connect error\n");
 	} else {
-		int rrc = si_sendmsg(sd, msg);
+		si_message *response = NULL;
+		int rrc = si_sendmsg_r(sd, msg, &response);
+		if(response) {
+			printf(" <- (%s) %s\n", si_type_string(response->type), textmessage(response)); 
+			free(response);
+		}
 		rc = cli_return(rrc);
 		si_close(sd);
 	}
@@ -141,8 +180,13 @@ int client_close(const char* conto)
 	if(sd<0) {
 		printf("connect error\n");
 	} else {
-		int rrc = si_sendmsg(sd, msg);
-		rc = cli_return(rrc);	
+		si_message* response = NULL;
+		int rrc = si_sendmsg_r(sd, msg, &response);
+		if(response) {
+			printf(" <- (%s) %s\n", si_type_string(response->type), textmessage(response)); 
+			free(response);
+		}
+		rc = cli_return(rrc);
 		si_close(sd);
 	}
 
@@ -152,15 +196,19 @@ int client_close(const char* conto)
 
 int main(int argc, char** argv)
 {
-	int rc=0;
+	int rc=0,secho=0;
 	if(argv[1] && argv[2] && argv[1][0]=='-') {
 
 		switch(argv[1][1]) {
 			case 'l':
 				//Listen
+
 				if(argv[1][2] == 'f')
 					unlink(argv[2]);
-				rc = server(argv[2]);
+				secho = (argv[1][2] == 'e' ||
+				  (argv[1][2] && argv[1][3] == 'e'));
+
+				rc = server(argv[2], secho);
 				break;
 			case 'p':
 				//Write
@@ -188,8 +236,8 @@ int main(int argc, char** argv)
 		}
 	} else 
 	{
-		printf("usage: %s -l[f] <socket>\nusage: %s -p[b] <socket> <message>\nusage: %s -c[f] <socket>\n", argv[0], argv[0], argv[0]);
-		printf("\n-l[f]\tlisten on socket. (f to unlink file first)\n");
+		printf("usage: %s -l[fe] <socket>\nusage: %s -p[b] <socket> <message>\nusage: %s -c[f] <socket>\n", argv[0], argv[0], argv[0]);
+		printf("\n-l[fe]\tlisten on socket. (f to unlink file first, e to send response)\n");
 		printf("-p[b]\twrite to socket. (b to send as binary)\n");
 		printf("-c[f]\tsend cose signal to socket. (f to unlink file after)\n");
 	}

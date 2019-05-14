@@ -17,6 +17,9 @@ clean:
 install-ffi:
 	if [[ $(shell id -u) == 0 ]]; then cp -f libsipc.so $(SYSTEM_INSTALL)/libsipc.so; fi
 
+install-ffi-symbolic:
+	ln -sf "`pwd`/libsipc.so" $(SYSTEM_INSTALL)/libsipc.so
+
 install: ffi install-ffi
 	if [ -d "$(LOCAL_INSTALL)" ]; then sudo -u `logname` ln -nsi "`pwd`" "$(LOCAL_INSTALL)/cl-sipc"; fi
 
