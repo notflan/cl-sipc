@@ -5,4 +5,4 @@ if [[ ! -f "`readlink -f libsipc.so`" ]]; then
 	make ffi
 fi
 
-sbcl --noinform --load test-server.lisp
+sbcl --noinform --load tools/test-server.lisp
