@@ -8,15 +8,22 @@
 
 ;; wrappers
 
-(defun bind (file)
+(defun timeout (sd value)
+  "set timeout for this socket (0 is infinite)"
+  (when value
+    (si-timeout sd value))
+  sd)
+
+(defun bind (file &key (read-timeout nil))
   "bind to the AF_UNIX socket `file'
-   returns the sd on success, nil on failure
+   returns the sd on success, nil on failure.
+   timeout can set a read timeout for the connection. 0 (or nil) is forever.
    (remember it has to be deleted first!)
   "
   (let ((rc (si-bind file)))
     (if (< rc 0) ;error
       nil
-      rc)))
+      (timeout rc read-timeout))))
 
 (defun hook (sd on-err on-msg)
   "listen on socket `sd'
@@ -30,7 +37,7 @@
    (note: this function blocks until the connection closes)
   "
   (let ((*on-message* on-msg)
-	(*on-err* on-err))
+	(*on-error* on-err))
     (let ((rc (si-listen sd (callback si-error-callback) (callback si-callback))))
       (if (< rc 0)
 	nil
@@ -41,12 +48,12 @@
   (si-close sd)
   t)
 
-(defun connect (file)
+(defun connect (file &key (read-timeout nil))
   "connect to socket `file'"
   (let ((rc (si-connect file)))
     (if (< rc 0) ;error
       nil
-      rc)))
+      (timeout rc read-timeout))))
 
 (defmacro with-bound-socket (desc &body body)
   "bind socket, run `body', then close the socket.
@@ -82,6 +89,7 @@
    	:partial - Could not write whole message
 	:error - send() error
 	:failure - send failed
+	:message - invalid response message
 	:unknown - unknown error code
 	:unknown-type - key argument :type is unknown
   :type can be:

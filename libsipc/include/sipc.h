@@ -24,10 +24,13 @@ typedef enum {
 #define SI_NORESP (1<<0)
 #define SI_DISCARD (1<<1)
 
+#define _SI_HEADER_CHECK 0xbeefbeefabad1dea;
+
 typedef struct {
 	si_type type;
 	unsigned int flags;
 	unsigned int data_len;
+	unsigned long check;
 	unsigned char data[];
 } si_message;
 
@@ -49,12 +52,15 @@ int si_bind(const char* file); //Returns sd, or -1 on failure.
 int si_listen(int sd, si_error_callback on_error, si_callback on_message); //Returns non-zero on clean exit, -1 on error.
 void si_close(int sd); //Close sock (must be called after si_listen()
 
+void si_timeout(int sd, int seconds); //Set sock timeout (0 for infinite).
+
 char* si_error_string(si_error err);
 char* si_type_string(si_type ty);
 
 int si_connect(const char* file); //Returns sd, or -1 on failure.
 int si_sendmsg_r(int sd, const si_message* msg,  si_message** response); //si_sendmmsg but optionally receive response (make sure to free() *response after you're done, NULL to discard response, if there is no response *response is not modified)
 int si_sendmsg(int sd, const si_message *msg); //Returns 0 on okay, 1 if whole message could not be sent, -1 on send error, -2 on weird send error. (see SI_SEND_*)
+void si_sign(si_message *msg); //Sign message. Use this before sending one.
 
 //Quick funcs
 int siqs_string_r(int sd, const char* string, unsigned int flags, si_message** resp); //quick send string

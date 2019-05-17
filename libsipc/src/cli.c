@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <string.h>
 
 int silent_level=0;
@@ -41,6 +42,7 @@ char* strbin(const unsigned char* data, size_t sz)
 }
 
 int server_aresp =0;
+int timeout=0;
 
 char* textmessage(const si_message *msg)
 {
@@ -122,6 +124,11 @@ int server(const char* bindto, int secho)
 		Eprintf("error binding\n");
 	} else {
 		Vprintf("bind ok\n");
+		if(timeout)
+		{
+			si_timeout(sd, timeout);
+			Vprintf("timeout set to %d\n", timeout);
+		}
 		rc = si_listen(sd, &on_error, &on_message);
 		Vprintf("listen stopped with rc %d\n", rc);
 		if(rc>=0) //positive rc is okay
@@ -172,7 +179,12 @@ int client(const char* conto, const char* string, int bin)
 		Eprintf("connect error\n");
 	} else {
 		Vprintf("connect ok\n");
+		if(timeout) {
+			si_timeout(sd, timeout);
+			Vprintf("timeout set to %d\n", timeout);
+		}
 		si_message *response = NULL;
+		si_sign(msg);
 		int rrc = si_sendmsg_r(sd, msg, &response);
 		if(response) {
 			if(silent_level>1)
@@ -204,7 +216,12 @@ int client_close(const char* conto)
 		Eprintf("connect error\n");
 	} else {
 		Vprintf("connect ok\n");
+		if(timeout) {
+			si_timeout(sd, timeout);
+			Vprintf("timeout set to %d\n", timeout);
+		}
 		si_message* response = NULL;
+		si_sign(msg);
 		int rrc = si_sendmsg_r(sd, msg, &response);
 		if(response) {
 			if(silent_level>1)
@@ -226,6 +243,7 @@ int pfa(char** argv)
 {
 	char * carg = argv[1]+1;
 	int rc=0;
+	int nrc=0;
 	while (*carg) 
 	{
 		switch(*carg) {
@@ -238,6 +256,10 @@ int pfa(char** argv)
 			case 'v':
 				silent_level =-1;
 				break;
+			case 't':
+				nrc+=1;
+				timeout = atoi(*(argv+1+nrc));
+				break;
 			default:
 				carg++;
 				continue;
@@ -245,6 +267,23 @@ int pfa(char** argv)
 		rc = 1;
 		carg++;
 	}
+	return rc+nrc;
+}
+
+int hang(const char* sock)
+{
+	int sd = si_connect(sock);
+	int rc =0;
+	if(sd<0) {
+		Eprintf("connection failed\n");
+		rc=-1;
+	} else {
+		Vprintf("connection established, waiting for %d seconds\n", (timeout?timeout:5) );
+		//si_timeout(sd, 5);
+		sleep(timeout?timeout:5);
+		Vprintf("abandoning\n");
+	}
+
 	return rc;
 }
 
@@ -293,6 +332,10 @@ int main(int argc, char** argv)
 				if(rc!=0)
 					Eprintf("client rc %d\n", rc);
 				break;
+			case 'h':
+				rc = hang(argv[2]);
+				Vprintf("hang rc %d\n", rc);
+				break;
 			default:
 				Eprintf("i don't know how to do that\n");
 				break;
@@ -300,14 +343,16 @@ int main(int argc, char** argv)
 	} else 
 	{
 		argv = _av;
-		printf("usage: %s [-qQv] -l[fe] <socket>\nusage: %s [-qQv] -p[b] <socket> <message>\nusage: %s [-qQv] -c[f] <socket>\n", argv[0], argv[0], argv[0]);
+		printf("usage: %s [-qQvt] [<timeout>] -l[fe] <socket>\nusage: %s [-qQvt] [<timeout>] -p[b] <socket> <message>\nusage: %s [-qQvt] [<timeout>] -c[f] <socket>\nusage: %s [-qQvt] [<timeout>] -h <socket>\n", argv[0], argv[0], argv[0], argv[0]);
 		printf("\n-l[fe]\tlisten on socket. (f to unlink file first, e to send response)\n");
 		printf("-p[b]\twrite to socket. (b to send as binary)\n");
 		printf("-c[f]\tsend cose signal to socket. (f to unlink file after)\n");
+		printf("-h\thang this socket (for 5 seconds, or set timeout if there is one)\n");
 		printf("\nother options:\n");
 		printf(" -q\tquiet mode, don't print errors\n");
 		printf(" -Q\tsilent mode, only print responses\n");
 		printf(" -v\tverbose mode, print additional messages\n");
+		printf(" -t\tset socket timeout to next arg (in seconds)\n");
 	}
 	return rc;
 }

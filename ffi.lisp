@@ -147,4 +147,6 @@
 (defcfun "siqr_close" :int
   (sd :pointer))
 
-
+(defcfun "si_timeout" :void
+  (sd :int)
+  (secs :int))

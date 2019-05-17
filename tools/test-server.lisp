@@ -4,12 +4,13 @@
   (ql:quickload :cl-sipc))
 
 (defparameter *socket-file* "sipc.socket")
+(defparameter *timeout* 5) ;; read timeout in seconds.
 (defparameter *respond* t) ;; should the server echo responses to client?
 
 (when (probe-file *socket-file*)
   (delete-file *socket-file*))
 
-(defparameter *socket* (cl-sipc:bind *socket-file*)) ;;attempt to bind to this file
+(defparameter *socket* (cl-sipc:bind *socket-file* :read-timeout *timeout*)) ;;attempt to bind to this file
 
 (when (not *socket*) 
   (format t "[e] binding failed ~a~%" *socket-file*) (quit))
@@ -19,8 +20,9 @@
 ;;block until the listener is done
 (let ((rc (cl-sipc:hook *socket*
 			#'(lambda (err) ;; Callback ran if there is an error
-			    (format t "Error: ~a~%" err)
-			    nil) ;;returning NIL to the listener stops
+			    (format t "[e] <- ~a~%" err)
+			    (force-output)
+			    t) ;;returning NIL to the listener stops, t lets it continue
 			#'(lambda (type message) ;; Callback ran when a message is received
 			    (when *respond*
 			      (format t

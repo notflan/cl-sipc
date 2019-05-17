@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <sys/un.h>
 #include <string.h>
+#include <errno.h>
 #include <stdarg.h>
 
 #include <sipc.h>
@@ -44,7 +45,7 @@ int si_bind(const char* file)
 static int _si_valid_header(const si_message *msg)
 {
 	int kk = (int)msg->type;
-	return kk>=0 && kk<_SI_ERROR && msg->data_len < SI_MAX_MESSAGE_SIZE;
+	return kk>=0 && kk<_SI_ERROR && msg->data_len < SI_MAX_MESSAGE_SIZE && msg->check == _SI_HEADER_CHECK;
 }
 
 static int _si_read_rest(int sd, si_message *message)
@@ -70,11 +71,31 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 		return -1;
 	}
 
+	struct timeval t;
+	socklen_t len = sizeof(t);
+	getsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &t, &len);
+
+	//printf("bind timeout : %ld\n", t.tv_sec);	
+	
+#define ISTSET(t) (!!(t.tv_sec+t.tv_usec))
+
+	if(ISTSET(t)) {
+		//Do we want to keep the accept timeout?
+		struct timeval t;
+		t.tv_usec=0;
+		t.tv_sec=0;
+		setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
+	}
+
 	while(1) {
 		int csd = accept(sd, NULL,NULL);
 		if(csd<0) {
 			rc = on_error(SIE_ACCEPT);
 			if(rc<0) break;
+			else continue;
+		}
+		if(ISTSET(t)) {
+			setsockopt(csd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
 		}
 		unsigned char buffer[sizeof(si_message)];
 		si_message *message = (si_message*)buffer;
@@ -96,6 +117,7 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 				break;
 			}
 		}
+		//printf("%d: %s\n", errno, strerror(errno));
 		if(rc<0) {
 			close(csd);
 			break;
@@ -137,6 +159,7 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 						resp->type = SI_BINARY;
 						resp->flags = SI_DISCARD | SI_NORESP;
 						resp->data_len = 0;
+						si_sign(resp);
 						int rc2 = si_sendmsg(csd, resp);
 
 						if (rc2 != SI_SEND_OKAY)
@@ -155,6 +178,8 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 		close(csd);
 		if(rc!=0) break;
 	}
+	if(ISTSET(t))	
+		setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
 	return rc;
 }
 
@@ -268,7 +293,7 @@ int si_read_response(int sd, si_message** resp)
 			break;
 		}
 	}
-	if(rc==0)
+	if(rc==0 && _si_valid_header(head))
 	{
 		si_message *full = malloc(sizeof(si_message)+head->data_len+1);
 		memset(full,0,sizeof(si_message)+head->data_len+1);
@@ -288,8 +313,17 @@ int si_read_response(int sd, si_message** resp)
 				free(full);
 				return (int)SIE_PCONCLS;
 		}
-	}
+	} else if(rc==0)
+		rc = (int)SIE_INVALID;
 	return rc;
+}
+
+void si_timeout(int sd, int seconds)
+{
+	struct timeval t;
+	t.tv_sec = seconds;
+	t.tv_usec=0;
+	setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (const char*) &t, sizeof(t));
 }
 
 static int _si_sendmsg(int sd, const si_message* msg)
@@ -303,6 +337,11 @@ static int _si_sendmsg(int sd, const si_message* msg)
 		return SI_SEND_PARTIAL;
 
 	return SI_SEND_OKAY;
+}
+
+void si_sign(si_message* msg)
+{
+	msg->check = _SI_HEADER_CHECK;
 }
 
 int si_sendmsg_r(int sd, const si_message *msg, si_message** resp)
@@ -366,6 +405,7 @@ int siqs_string_r(int sd, const char* string, unsigned int flags, si_message** r
 
 	memcpy(msg->data, string, msg->data_len);
 
+	si_sign(msg);
 	int rc = si_sendmsg_r(sd, msg, resp);
 
 	free(msg);
@@ -386,6 +426,7 @@ int siqs_close_r(int sd, unsigned int flags, si_message** resp)
 	msg->data_len=0;
 	msg->flags = flags;
 
+	si_sign(msg);
 	int rc = si_sendmsg_r(sd, msg, resp);
 
 	free(msg);
@@ -407,6 +448,7 @@ int siqs_binary_r(int sd, const unsigned char* buffer, size_t size, unsigned int
 
 	memcpy(msg->data, buffer, msg->data_len);
 
+	si_sign(msg);
 	int rc = si_sendmsg_r(sd, msg, resp);
 
 	free(msg);
@@ -447,6 +489,7 @@ int siqr_string(const si_message* sd, const char* string)
 
 	memcpy(msg->data, string, msg->data_len);
 
+	si_sign(msg);
 	int rc = si_response(sd, msg);
 
 	free(msg);
@@ -463,6 +506,7 @@ int siqr_binary(const si_message* sd, const unsigned char* buffer, size_t size)
 
 	memcpy(msg->data, buffer, msg->data_len);
 
+	si_sign(msg);
 	int rc = si_response(sd, msg);
 
 	free(msg);
@@ -477,6 +521,7 @@ int siqr_close(const si_message* sd)
 	msg->type = SI_CLOSE;
 	msg->data_len = 0;
 
+	si_sign(msg);
 	int rc = si_response(sd, msg);
 
 	free(msg);

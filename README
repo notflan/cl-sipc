@@ -15,6 +15,7 @@ Additional tools can be built by running `make all-ffi' in the libsipc/ director
 Functions:
 ;server functions
  sipc:bind(file)	;; Bind to socket `file'. Returns the socket descriptor on success and nil on fail (the socket must not already exist)
+ sipc:timeout(socket sec) ;; Set read timeout (in seconds) to socket. (if value is NIL, nothing happens, if value is 0, set to infinite). (note: when something fails timeout it sends error :MESSAGE (invalid message).
  sipc:release(socket)	;; Close socket
  sipc:hook(socket error-callback message-callback)
    ;; start listening on `socket'. error-callback should be in format (lambda (error) ...). message-callback should be in format (lambda (type message )...).
@@ -128,7 +129,7 @@ Terminal 1:
 
 ---
 
-TODO: fix potential hanging
+TODO: Add proper signing.
 TODO: Internal error handling.
 TODO: Have libsipc built on system load
 TODO: better .so loading
