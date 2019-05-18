@@ -89,19 +89,21 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 	}
 
 	struct timeval t;
+	int sett=0;
 	socklen_t len = sizeof(t);
 	getsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &t, &len);
 
 	//printf("bind timeout : %ld\n", t.tv_sec);	
 	
-#define ISTSET(t) (!!(t.tv_sec+t.tv_usec))
+#define ISTSET(t) (sett||(!!(t.tv_sec+t.tv_usec)))
 
 	if(ISTSET(t)) {
 		//Do we want to keep the accept timeout?
-		struct timeval t;
-		t.tv_usec=0;
-		t.tv_sec=0;
-		setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
+		struct timeval t2;
+		t2.tv_usec=0;
+		t2.tv_sec=0;
+		setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &t2, sizeof(t2));
+		sett=1;
 	}
 
 	while(1) {
@@ -112,9 +114,13 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 			else continue;
 		}
 		if(ISTSET(t)) {
-			setsockopt(csd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
+			struct timeval tt;
+			memcpy(&tt, &t, sizeof(t));
+			printf("setting sock timeout to %ld\n", tt.tv_sec);
+			setsockopt(csd, SOL_SOCKET, SO_RCVTIMEO, &tt, sizeof(tt));
 		}
 		unsigned char buffer[sizeof(si_message)];
+		memset(buffer,0,sizeof(si_message));
 		si_message *message = (si_message*)buffer;
 		int read=0;
 		int rd=0;
@@ -216,7 +222,7 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 		close(csd);
 		if(rc!=0) break;
 	}
-	if(ISTSET(t))	
+	if(ISTSET(t))
 		setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
 	return rc;
 }
