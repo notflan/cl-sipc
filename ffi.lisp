@@ -15,6 +15,11 @@
 (defconstant +sie-r-invalid+ 4)
 (defconstant +sie-r-multi+ 5)
 (defconstant +sie-r-disable+ 6)
+(defconstant +sie-checksum+ 7)
+
+;; recoverable ("warning") error codes
+(defconstant +sief-warning+ #xAFF000)
+(defconstant +siw-checksum+ #.(+ +sief-warning+ 1))
 
 (defctype si-send-rc :int)
 (defconstant +si-send-okay+ 0)
@@ -51,13 +56,15 @@
 	((= err #.+sie-read+) :read)
 	((= err #.+sie-pconcls+) :closed)
 	((= err #.+sie-invalid+) :message)
+	((= err #.+sie-checksum+) :checksum)
+	((= err #.+siw-checksum+) '(:warning :checksum))
 	(t :unknown)))
 
 (defcallback si-error-callback :int ((err si-error))
   (when (symbol-value '*on-error*)
     (if (funcall (symbol-value '*on-error*) (marshal-ec err))
       0
-      1)))
+      -1)))
 
 (defun si-typecase (message &key string binary close)
   (let* ((type (sif-type message))
@@ -68,7 +75,7 @@
 		    ((= type #.+si-binary+) (funcall binary (make-pointer :memory data :size size))))))
     (if rval
       0
-      1)))
+      -1)))
 
 
 (defcallback si-callback :int ((message :pointer))

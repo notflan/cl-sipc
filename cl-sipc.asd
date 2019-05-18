@@ -4,7 +4,7 @@
   :description "AF_UNIX IPC for CL"
   :author "Avril <flanchan@cumallover.me>"
   :license "None"
-  :version "0.0.3"
+  :version "0.0.4"
   :serial t
   :depends-on (  :cffi  )
   :components  ((:file "package")

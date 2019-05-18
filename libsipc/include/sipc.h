@@ -1,6 +1,7 @@
 #ifndef _LIBSIPC_H
 #define _LIBSIPC_H
 #include <stddef.h>
+#include <stdint.h>
 
 #define SI_MAX_MESSAGE_SIZE 1024
 
@@ -21,19 +22,22 @@ typedef enum {
 	_SI_ERROR,
 } si_type;
 
-#define SI_NORESP (1<<0)
-#define SI_DISCARD (1<<1)
+#define SI_NORESP (1<<0)	//Do not expect a response.
+#define SI_DISCARD (1<<1)	//Do not process this.
+#define SI_NOSIGN (1<<2)	//This message is not signed.
 
-#define _SI_HEADER_CHECK 0xbeefbeefabad1dea;
+#define _SI_HEADER_CHECK 0xbeefbeefabad1deaul
 
 typedef struct {
 	si_type type;
 	unsigned int flags;
 	unsigned int data_len;
-	unsigned long check;
+	unsigned long check0;
+	uint64_t check;
 	unsigned char data[];
 } si_message;
 
+#define SIEF_WARNING  0xaff000
 typedef enum {
 	SIE_ACCEPT= 0, //Sock accept failure
 	SIE_READ, //Sock read failure
@@ -43,6 +47,12 @@ typedef enum {
 	SIE_R_INVALID, //This message cannot be responded to like that
 	SIE_R_MULTI, //A response has already been sent
 	SIE_R_DISABLE, //The client asked to not be responded to
+
+	SIE_CHECKSUM, //Bad checksum
+
+	//Recoverable errors (warnings)
+
+	SIW_CHECKSUM = (SIEF_WARNING)+1, //No checksum.
 } si_error;
 
 typedef int (*si_callback)(const si_message *msg);
@@ -60,7 +70,7 @@ char* si_type_string(si_type ty);
 int si_connect(const char* file); //Returns sd, or -1 on failure.
 int si_sendmsg_r(int sd, const si_message* msg,  si_message** response); //si_sendmmsg but optionally receive response (make sure to free() *response after you're done, NULL to discard response, if there is no response *response is not modified)
 int si_sendmsg(int sd, const si_message *msg); //Returns 0 on okay, 1 if whole message could not be sent, -1 on send error, -2 on weird send error. (see SI_SEND_*)
-void si_sign(si_message *msg); //Sign message. Use this before sending one.
+void si_sign(si_message *msg); //Sign message. Use this before sending one. (note: you still have to call this, even when setting SI_NOSIGN flag.
 
 //Quick funcs
 int siqs_string_r(int sd, const char* string, unsigned int flags, si_message** resp); //quick send string

@@ -6,6 +6,7 @@
 (defparameter *socket-file* "sipc.socket")
 (defparameter *timeout* 5) ;; read timeout in seconds.
 (defparameter *respond* t) ;; should the server echo responses to client?
+(defparameter *allow-no-checksums* t) ;; should we process unsigned messages?
 
 (when (probe-file *socket-file*)
   (delete-file *socket-file*))
@@ -22,7 +23,7 @@
 			#'(lambda (err) ;; Callback ran if there is an error
 			    (format t "[e] <- ~a~%" err)
 			    (force-output)
-			    t) ;;returning NIL to the listener stops, t lets it continue
+			    (or (atom err) *allow-no-checksums*) ) ;;returning NIL to the listener stops, t lets it continue. err will only be not atom() if it's a warning, which are handled differently. T lets the pipe continue and pass the message to the message callback, nil does not.
 			#'(lambda (type message) ;; Callback ran when a message is received
 			    (when *respond*
 			      (format t

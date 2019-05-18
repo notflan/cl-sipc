@@ -24,6 +24,9 @@ Functions:
 	; :read - There was an error reading the message
 	; :closed - The connection was closed before a message could be read
 	; :message - The message was invalid or outside the acceptable size bounds (TODO make this runtime instead of compile-time constant)
+	; :checksum - The message had an invalid checksum
+   ;; there are also ignorable/recoverable errors, which are sent to the error callback as suck '(:warning <error name>). These are treated differently. If the error callback returns T, let the message be carried on. If the error callback returns NIL, discard it. Available ones are:
+	; (:warning :checksum) - The message had no checksum. (note: if this is not allowed to pass then :CHECKSUM error is raised).
 	;; (see libsipc/include/sipc.h for more details)
    ;; available types are:
 	; :string - Normal string
@@ -129,7 +132,6 @@ Terminal 1:
 
 ---
 
-TODO: Add proper signing.
 TODO: Internal error handling.
 TODO: Have libsipc built on system load
 TODO: better .so loading

@@ -6,6 +6,7 @@
 #include <string.h>
 
 int silent_level=0;
+int signing=1;
 
 #define Vprintf(...) if(silent_level<0) printf("[l] " __VA_ARGS__)
 #define Eprintf(...) if(silent_level <2) fprintf(stderr, "[e] " __VA_ARGS__)
@@ -13,7 +14,15 @@ int silent_level=0;
 
 int on_error(si_error err)
 {
-	Eprintf("<- %s\n", si_error_string(err));
+
+	if(err & SIEF_WARNING) { //Different handler for warnings
+		Eprintf("<- (w) %s\n", si_error_string(err));
+		if(err == SIW_CHECKSUM && signing) {
+			return -1; //We don't want to accept this, we're expecting signed packets.
+		} else return 0;
+	 } else {
+		Eprintf("<- %s\n", si_error_string(err));
+	 }
 
 	return 0;
 }
@@ -184,6 +193,8 @@ int client(const char* conto, const char* string, int bin)
 			Vprintf("timeout set to %d\n", timeout);
 		}
 		si_message *response = NULL;
+		if(!signing)
+			msg->flags |= SI_NOSIGN;	
 		si_sign(msg);
 		int rrc = si_sendmsg_r(sd, msg, &response);
 		if(response) {
@@ -221,6 +232,8 @@ int client_close(const char* conto)
 			Vprintf("timeout set to %d\n", timeout);
 		}
 		si_message* response = NULL;
+		if(!signing)
+			msg->flags |= SI_NOSIGN;	
 		si_sign(msg);
 		int rrc = si_sendmsg_r(sd, msg, &response);
 		if(response) {
@@ -255,6 +268,9 @@ int pfa(char** argv)
 				break;
 			case 'v':
 				silent_level =-1;
+				break;
+			case 'u':
+				signing = 0;
 				break;
 			case 't':
 				nrc+=1;
@@ -343,7 +359,7 @@ int main(int argc, char** argv)
 	} else 
 	{
 		argv = _av;
-		printf("usage: %s [-qQvt] [<timeout>] -l[fe] <socket>\nusage: %s [-qQvt] [<timeout>] -p[b] <socket> <message>\nusage: %s [-qQvt] [<timeout>] -c[f] <socket>\nusage: %s [-qQvt] [<timeout>] -h <socket>\n", argv[0], argv[0], argv[0], argv[0]);
+		printf("usage: %s [-uqQvt] [<timeout>] -l[fe] <socket>\nusage: %s [-uqQvt] [<timeout>] -p[b] <socket> <message>\nusage: %s [-uqQvt] [<timeout>] -c[f] <socket>\nusage: %s [-qQvt] [<timeout>] -h <socket>\n", argv[0], argv[0], argv[0], argv[0]);
 		printf("\n-l[fe]\tlisten on socket. (f to unlink file first, e to send response)\n");
 		printf("-p[b]\twrite to socket. (b to send as binary)\n");
 		printf("-c[f]\tsend cose signal to socket. (f to unlink file after)\n");
@@ -353,6 +369,7 @@ int main(int argc, char** argv)
 		printf(" -Q\tsilent mode, only print responses\n");
 		printf(" -v\tverbose mode, print additional messages\n");
 		printf(" -t\tset socket timeout to next arg (in seconds)\n");
+		printf(" -u\tdo not sign messages (or do not verify, for server)\n");
 	}
 	return rc;
 }

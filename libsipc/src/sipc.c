@@ -9,6 +9,7 @@
 #include <stdarg.h>
 
 #include <sipc.h>
+#include "crc64.h"
 
 #define _SIRH_CHECK 0xabad
 struct si_response_header {
@@ -42,10 +43,26 @@ int si_bind(const char* file)
 	return sd;
 }
 
+int si_validate_message(const si_message *msg)
+{
+	char buffer[sizeof(si_message)];
+
+	if(msg->flags & SI_NOSIGN)
+		return 0; //Don't bother checking if it says there's no sign.
+	
+	memset(buffer,0,sizeof(si_message));
+	si_message *head = (si_message*)buffer;
+	memcpy(buffer,msg,sizeof(si_message));
+	head->check = _SI_HEADER_CHECK;
+	uint64_t crc0 = crc64(0, (unsigned char*)head, sizeof(si_message));
+	uint64_t crc = crc64(crc0,  msg->data, head->data_len);
+	return msg->check == crc;
+}
+
 static int _si_valid_header(const si_message *msg)
 {
 	int kk = (int)msg->type;
-	return kk>=0 && kk<_SI_ERROR && msg->data_len < SI_MAX_MESSAGE_SIZE && msg->check == _SI_HEADER_CHECK;
+	return kk>=0 && kk<_SI_ERROR && msg->data_len < SI_MAX_MESSAGE_SIZE && msg->check0 == _SI_HEADER_CHECK;
 }
 
 static int _si_read_rest(int sd, si_message *message)
@@ -135,6 +152,7 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 				memcpy(full, message, sizeof(si_message));
 
 				rc = _si_read_rest(csd, full);
+				int valid=0;
 
 				if(rc!=0) {
 					if(rc==-1)
@@ -147,26 +165,46 @@ int si_listen(int sd, si_error_callback on_error, si_callback on_message)
 						break;
 					}
 				}
-			  	else {
+			  	else if( (valid=si_validate_message(full)) || (full->flags & SI_NOSIGN) ){
 					//Message has been read.
+					
+					if(!valid) {
+						valid = on_error(SIW_CHECKSUM) == 0; 
+					}
+					if(valid) {
+						rc = (full->flags & SI_DISCARD) ? 0 : on_message(full);
 
-					rc = (full->flags & SI_DISCARD) ? 0 : on_message(full);
+						if(!full0->resp_sent && !(full->flags & SI_NORESP))
+						{
+							//Send blank response. (Unless client asked for none.)
+							si_message *resp = malloc(sizeof(si_message));
+							resp->type = SI_BINARY;
+							resp->flags = SI_DISCARD | SI_NORESP;
+							resp->data_len = 0;
+							si_sign(resp);
+							int rc2 = si_sendmsg(csd, resp);
 
-					if(!full0->resp_sent && !(full->flags & SI_NORESP))
-					{
-						//Send blank response. (Unless client asked for none.)
-						si_message *resp = malloc(sizeof(si_message));
-						resp->type = SI_BINARY;
-						resp->flags = SI_DISCARD | SI_NORESP;
-						resp->data_len = 0;
-						si_sign(resp);
-						int rc2 = si_sendmsg(csd, resp);
+							if (rc2 != SI_SEND_OKAY)
+								rc = on_error((si_error)rc2);
 
-						if (rc2 != SI_SEND_OKAY)
-							rc = on_error((si_error)rc2);
+							free(resp);
 
-						free(resp);
-
+						}
+					} else {
+						rc = on_error(SIE_CHECKSUM);
+						if(rc<0) 
+						{
+							close(csd);
+							free(full0);
+							break;
+						}
+					}
+				} else { // Bad checksum
+					rc = on_error(SIE_CHECKSUM);
+					if(rc<0) {
+						close(csd);
+						free(full0);
+						break;
 					}
 				}
 				free(full0);
@@ -207,13 +245,19 @@ char *si_error_string(si_error err)
 			put("SIE_INVALID: Bad message");
 			break;
 		case SIE_R_INVALID:
-			puts("SIE_R_INVALID: Cannot respond to this");
+			put("SIE_R_INVALID: Cannot respond to this");
 			break;
 		case SIE_R_MULTI:
-			puts("SIE_R_MULTI: A response has already been sent");
+			put("SIE_R_MULTI: A response has already been sent");
 			break;
 		case SIE_R_DISABLE:
-			puts("SIE_R_DISABLE: A response is not expected");
+			put("SIE_R_DISABLE: A response is not expected");
+			break;
+		case SIE_CHECKSUM:
+			put("SIE_CHECKSUM: Bad checksum");
+			break;
+		case SIW_CHECKSUM:
+			put("SIW_CHECKSUM: No checksum");
 			break;
 		default:
 			put("SIE_UNKNOWN: Unknown EC %d", (int)err);
@@ -299,13 +343,20 @@ int si_read_response(int sd, si_message** resp)
 		memset(full,0,sizeof(si_message)+head->data_len+1);
 		memcpy(full, head, sizeof(si_message));
 		rc = _si_read_rest(sd, full);
+		int valid=0;
 		switch(rc) {
 			case 0:
-				if(full->flags & SI_DISCARD)
+
+				if((valid=si_validate_message(full)) || (full->flags & SI_NOSIGN)) {
+					if(full->flags & SI_DISCARD)
+						free(full);
+					else 
+						*resp = full;
+					return valid?0:(int)SIW_CHECKSUM;
+				} else {
 					free(full);
-				else 
-					*resp = full;
-				return 0;
+					return (int)SIE_CHECKSUM;
+				}
 			case -1:
 				free(full);
 				return (int)SIE_READ;
@@ -341,7 +392,10 @@ static int _si_sendmsg(int sd, const si_message* msg)
 
 void si_sign(si_message* msg)
 {
-	msg->check = _SI_HEADER_CHECK;
+	msg->check = (uint64_t)(msg->check0 = _SI_HEADER_CHECK);
+	if(msg->flags & SI_NOSIGN) return;
+	uint64_t crc = crc64(0, (unsigned char*)msg, sizeof(si_message)+msg->data_len);
+	msg->check = crc;
 }
 
 int si_sendmsg_r(int sd, const si_message *msg, si_message** resp)
@@ -543,3 +597,5 @@ int siqr_printf(const si_message* sd, const char* format, ...)
 
 	return rc;
 }
+
+#include "crc64.c" //why not keep single translation unit?

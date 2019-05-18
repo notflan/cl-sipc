@@ -90,6 +90,7 @@
 	:error - send() error
 	:failure - send failed
 	:message - invalid response message
+	:checksum - invalid checksum
 	:unknown - unknown error code
 	:unknown-type - key argument :type is unknown
   :type can be:
@@ -125,7 +126,7 @@
 		(cond ((= rc #.+si-send-partial+) :partial)
 		      ((= rc #.+si-send-error+) :error)
 		      ((= rc #.+si-send-failure+) :failure)
-		      (t :unknown))))
+		      (t (marshal-ec rc)))))
       rc)))
 
 (defun respond (value &optional (type :string))
@@ -150,7 +151,7 @@
 		((= rc #.+si-send-partial+) :partial)
 		((= rc #.+si-send-error+) :error)
 		((= rc #.+si-send-failure+) :failure)
-		(t :unknown))
+		(t (marshal-ec rc)))
 	  rc))
       :response-invalid)))
 
