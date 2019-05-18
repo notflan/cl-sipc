@@ -160,4 +160,4 @@
   (with-bound-socket (sd sock :connect)
     (send sd value type)))
 
-(mapc #'export '(connect respond send send-quick bind hook release with-bound-socket))
+(mapc #'export '(connect respond timeout send send-quick bind hook release with-bound-socket))
