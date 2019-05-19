@@ -29,13 +29,18 @@ typedef enum {
 #define _SI_HEADER_CHECK 0xbeefbeefabad1deaul
 
 typedef struct {
-	si_type type;
-	unsigned int flags;
-	unsigned int data_len;
-	unsigned long check0;
+	union {
+		si_type type;
+		uint32_t __pad;
+	};
+	uint32_t flags;
+	uint32_t data_len;
+	uint64_t check0;
 	uint64_t check;
-	unsigned char data[];
+	uint8_t data[];
 } si_message;
+
+_Static_assert(sizeof(union { si_type t0; uint32_t pad;}) == sizeof(uint32_t), "packing error: sizeof(enum)!=sizeof(uint32_t)");
 
 #define SIEF_WARNING  0xaff000
 typedef enum {
