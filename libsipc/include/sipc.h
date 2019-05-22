@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define SI_MAX_MESSAGE_SIZE 1024
+#define SI_MAX_MESSAGE_SIZE (1024*1024)*5 //5MB
 
 #define SI_ERROR_STRING_SIZE 256
 #define SI_TYPE_STRING_SIZE 256
