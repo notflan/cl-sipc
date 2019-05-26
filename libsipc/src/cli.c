@@ -305,6 +305,7 @@ int hang(const char* sock)
 
 int main(int argc, char** argv)
 {
+	//printf("%ld\n", sizeof(si_message));
 	int rc=0,secho=0;
 	char** _av = argv;
 	if(argv[1] && argv[1][0] == '-')

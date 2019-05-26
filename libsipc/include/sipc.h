@@ -26,7 +26,7 @@ typedef enum {
 #define SI_DISCARD (1<<1)	//Do not process this.
 #define SI_NOSIGN (1<<2)	//This message is not signed.
 
-#define _SI_HEADER_CHECK 0xbeefbeefabad1deaul
+#define _SI_HEADER_CHECK 0xbeefbeefabad1dealu
 
 typedef struct {
 	union {
@@ -35,12 +35,14 @@ typedef struct {
 	};
 	uint32_t flags;
 	uint32_t data_len;
+	uint32_t __unused; //fix weird padding problem.
 	uint64_t check0;
 	uint64_t check;
 	uint8_t data[];
 } si_message;
 
 _Static_assert(sizeof(union { si_type t0; uint32_t pad;}) == sizeof(uint32_t), "packing error: sizeof(enum)!=sizeof(uint32_t)");
+_Static_assert(sizeof(si_message) == (sizeof(uint32_t)*4) + (sizeof(uint64_t)*2), "packing error: bad size, header padded size != 32 bytes?");
 
 #define SIEF_WARNING  0xaff000
 typedef enum {
