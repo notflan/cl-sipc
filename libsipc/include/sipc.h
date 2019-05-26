@@ -28,7 +28,13 @@ typedef enum {
 
 #define _SI_HEADER_CHECK 0xbeefbeefabad1dealu
 
-typedef struct {
+#ifdef __GNUC__
+#define __pack __attribute__((packed))
+#else
+#define __pack
+#endif
+
+typedef struct __pack {
 	union {
 		si_type type;
 		uint32_t __pad;
@@ -39,7 +45,7 @@ typedef struct {
 	uint64_t check0;
 	uint64_t check;
 	uint8_t data[];
-} si_message;
+} si_message ;
 
 _Static_assert(sizeof(union { si_type t0; uint32_t pad;}) == sizeof(uint32_t), "packing error: sizeof(enum)!=sizeof(uint32_t)");
 _Static_assert(sizeof(si_message) == (sizeof(uint32_t)*4) + (sizeof(uint64_t)*2), "packing error: bad size, header padded size != 32 bytes?");
