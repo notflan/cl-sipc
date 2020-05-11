@@ -1,6 +1,6 @@
 ;; pointer
 
-(in-package :cl-sipc)
+(in-package :cl-sipc-mem)
 
 (defstruct pointer
   memory
@@ -44,18 +44,18 @@
 	(type (or (caddr desc) :unsigned-char))
 	(pointer-from-type-infer (gensym)))
     (let ((makeptr
-	    (cond ((eql type0 :string) `(pointer-from-string ,from))
-	  	  ((eql type0 :sequence) `(pointer-from-seq ,from ,type))
-	 	  ((eql type0 :single) `(pointer-from ,from ,type))
-		  (t `(,pointer-from-type-infer ,from ,type)))))
+	   (cond ((eql type0 :string) `(pointer-from-string ,from))
+		 ((eql type0 :sequence) `(pointer-from-seq ,from ,type))
+		 ((eql type0 :single) `(pointer-from ,from ,type))
+		 (t `(,pointer-from-type-infer ,from ,type)))))
       `(flet ((,pointer-from-type-infer (fr ty)
-					(cond ((stringp fr) (pointer-from-string fr))
-					      ((or (vectorp fr)
-						   (listp fr)) (pointer-from-seq fr ty))
-					      (t (pointer-from fr ty)))))
+		(cond ((stringp fr) (pointer-from-string fr))
+		      ((or (vectorp fr)
+			   (listp fr)) (pointer-from-seq fr ty))
+		      (t (pointer-from fr ty)))))
 	 (let* ((,name ,makeptr)
 		(result
-		  (progn ,@body)))
+		 (progn ,@body)))
 	   (pointer-free ,name)
 	   result)))))
 
@@ -67,18 +67,19 @@
   "pointer to Lisp vector"
   (let ((vec (make-array (pointer-size ptr) :initial-element 0)))
     (loop for x from 0 below (pointer-size ptr)
-	  do (setf (aref vec x) (mem-aref (pointer-memory ptr) type x)))
+       do (setf (aref vec x) (mem-aref (pointer-memory ptr) type x)))
     vec))
 
-(mapc #'export '( make-pointer
-		  pointer
-		  pointer-memory
-		  pointer-p
-		  pointer-size
+(mapc #'export '(
+		 
+		 pointer
+		 pointer-memory
+		 pointer-p
+		 pointer-size
 
-		  pointer-from-string
-		  pointer-from-seq
-		  pointer-from
-		  with-pointer
-		  pointer-to-array
-		  pointer-free))
+		 pointer-from-string
+		 pointer-from-seq
+		 pointer-from
+		 with-pointer
+		 pointer-to-array
+		 pointer-free))

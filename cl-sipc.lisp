@@ -1,6 +1,7 @@
 ;; cl-sipc
 
 (in-package :cl-sipc)
+(use-package :cl-sipc-mem)
 
 (defparameter *on-error* #'(lambda (err) nil))
 (defparameter *on-message* #'(lambda (msg)
