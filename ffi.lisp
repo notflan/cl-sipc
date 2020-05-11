@@ -1,6 +1,7 @@
 ;; Foreign functions
 
 (in-package :cl-sipc)
+(use-package :cl-sipc-mem)
 
 (defctype si-type :int)
 (defconstant +si-string+ 0)
